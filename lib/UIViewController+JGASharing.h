@@ -15,8 +15,8 @@
 
 @interface UIViewController(JGASharing) <MFMailComposeViewControllerDelegate, MFMessageComposeViewControllerDelegate>
 
-// Display the built in in iOS5 tweet sheet with the provided initial text (optional) and link (optional)
-- (void)displayTweetSheetWithText:(NSString *)text link:(NSString *)link;
+// Display the built in in iOS5 tweet sheet with the provided initial text (optional), link (optional) and photo (optional)
+- (void)displayTweetSheetWithText:(NSString *)text link:(NSString *)link photo:(UIImage *)image;
 
 // Opens an SMS window with the provided text
 - (void)displayTextSheetWithText:(NSString *)text;

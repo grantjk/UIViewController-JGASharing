@@ -10,16 +10,20 @@
 
 @implementation UIViewController(JGASharing)
 
-- (void)displayTweetSheetWithText:(NSString *)text link:(NSString *)link
+- (void)displayTweetSheetWithText:(NSString *)text link:(NSString *)link photo:(UIImage *)image
 {
   if ([TWTweetComposeViewController canSendTweet]) {
-    TWTweetComposeViewController *ts = [[TWTweetComposeViewController alloc] init];        
-    [ts setInitialText:text];
-    [ts addURL:[NSURL URLWithString:link]];
-    [self presentViewController:ts animated:YES completion:NULL];
+    TWTweetComposeViewController *tweetSheet = [[TWTweetComposeViewController alloc] init];        
+    
+    if (text) [tweetSheet setInitialText:text];
+    if (link) [tweetSheet addURL:[NSURL URLWithString:link]];
+    if (image) [tweetSheet addImage:image];
+      
+    [self presentViewController:tweetSheet animated:YES completion:NULL];
   }else{
+      NSString *errorMessage = @"Please enable Twitter in Settings to use this feature";
     UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
-                                                    message:@"Please enable Twitter in Settings to use this feature" 
+                                                    message:errorMessage
                                                    delegate:nil 
                                           cancelButtonTitle:@"Ok" 
                                           otherButtonTitles: nil];
