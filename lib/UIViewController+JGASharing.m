@@ -7,6 +7,7 @@
 //
 
 #import "UIViewController+JGASharing.h"
+#import <QuartzCore/QuartzCore.h>
 
 @implementation UIViewController(JGASharing)
 
@@ -18,6 +19,11 @@
     if (text) [tweetSheet setInitialText:text];
     if (link) [tweetSheet addURL:[NSURL URLWithString:link]];
     if (image) [tweetSheet addImage:image];
+      
+      tweetSheet.completionHandler = ^(TWTweetComposeViewControllerResult result) {
+          [self cleanUpAfterSharing];
+          [self dismissModalViewControllerAnimated:YES];
+      };
       
     [self presentViewController:tweetSheet animated:YES completion:NULL];
   }else{
@@ -46,12 +52,19 @@
     [alert show];
   }
 }
-- (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject
+- (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject attachment:(NSString *)filePath
 {
   MFMailComposeViewController *picker = [[MFMailComposeViewController alloc] init];
   picker.mailComposeDelegate = self;
   [picker setSubject:subject];
   [picker setMessageBody:body isHTML:NO];
+    
+    if (filePath) {
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        [picker addAttachmentData:data mimeType:@"image/png" fileName:filePath];
+    }
+    
+    
   [self presentViewController:picker animated:YES completion:NULL];
 }
 
@@ -59,6 +72,7 @@
           didFinishWithResult:(MFMailComposeResult)result
                         error:(NSError*)error 
 {	    
+    [self cleanUpAfterSharing];
   [self dismissViewControllerAnimated:YES completion:NULL];
 }
 
@@ -66,6 +80,40 @@
                  didFinishWithResult:(MessageComposeResult)result
 {
   [self dismissViewControllerAnimated:YES completion:NULL];
+}
+
+- (void)cleanUpAfterSharing
+{
+    // To be overriden
+}
+
+- (UIImage *)createPNGfromUIView:(UIView*)aView{
+    UIGraphicsBeginImageContext(aView.bounds.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    [aView.layer renderInContext:context];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+- (NSString *)savePNGfromUIView:(UIView*)aView withFileName:(NSString*)aFilename{
+    UIGraphicsBeginImageContext(aView.bounds.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    [aView.layer renderInContext:context];
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    // Retrieves the document directories from the iOS device
+    NSArray* documentDirectories = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask,YES);
+    
+    NSString* documentDirectory = [documentDirectories objectAtIndex:0];
+    NSString* documentDirectoryFilename = [documentDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png",aFilename]];
+    
+    // instructs the mutable data object to write its context to a file on disk
+    NSData *data = [[NSData alloc] initWithData:UIImagePNGRepresentation(image)];
+    [data writeToFile:documentDirectoryFilename atomically:YES];
+    return documentDirectoryFilename;
 }
 
 

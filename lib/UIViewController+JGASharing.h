@@ -22,5 +22,14 @@
 - (void)displayTextSheetWithText:(NSString *)text;
 
 // Opens an email window with the given body and subject
-- (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject;
+- (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject attachment:(NSString *)filePath;
+
+// Creates and saves a png for the given view. 
+- (UIImage *)createPNGfromUIView:(UIView*)aView;
+
+// Creates a png and saves to documents. Returns full filepath
+- (NSString *)savePNGfromUIView:(UIView*)aView withFileName:(NSString*)aFilename;
+
+// Allow for clean up. Overriden in view controller
+- (void)cleanUpAfterSharing;
 @end
