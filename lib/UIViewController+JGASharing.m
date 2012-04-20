@@ -7,35 +7,73 @@
 //
 
 #import "UIViewController+JGASharing.h"
+#import "JGALoadingView.h"
 #import <QuartzCore/QuartzCore.h>
+
+#define kOptsKeyText    @"text"
+#define kOptsKeyLink    @"link"
+#define kOptsKeyImage   @"image"
+#define kOptsBody       @"body"
+#define kOptsAttach     @"attach"
+#define kOptsSubject    @"subject"
+
+#define kTwitterError @"Please enable Twitter in Settings to use this feature"
 
 @implementation UIViewController(JGASharing)
 
+- (void)displayViewController:(UIViewController *)viewController
+{
+    [JGALoadingView hideLoadingView];
+    [self presentViewController:viewController animated:YES completion:NULL];
+}
+
+- (void)cleanUpAfterSharing
+{
+    // To be overriden
+}
+
+#pragma mark - TWITTER
 - (void)displayTweetSheetWithText:(NSString *)text link:(NSString *)link photo:(UIImage *)image
 {
-  if ([TWTweetComposeViewController canSendTweet]) {
-    TWTweetComposeViewController *tweetSheet = [[TWTweetComposeViewController alloc] init];        
-    
-    if (text) [tweetSheet setInitialText:text];
-    if (link) [tweetSheet addURL:[NSURL URLWithString:link]];
-    if (image) [tweetSheet addImage:image];
-      
-      tweetSheet.completionHandler = ^(TWTweetComposeViewControllerResult result) {
-          [self cleanUpAfterSharing];
-          [self dismissModalViewControllerAnimated:YES];
-      };
-      
-    [self presentViewController:tweetSheet animated:YES completion:NULL];
-  }else{
-      NSString *errorMessage = @"Please enable Twitter in Settings to use this feature";
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
-                                                    message:errorMessage
-                                                   delegate:nil 
-                                          cancelButtonTitle:@"Ok" 
-                                          otherButtonTitles: nil];
-    [alert show];
-  }    
+    if ([TWTweetComposeViewController canSendTweet]) {
+        [JGALoadingView loadingViewInView:self.view withText:@"Composing..."];
+        
+        NSMutableDictionary *opts = [NSMutableDictionary dictionaryWithCapacity:3];
+        if (text)   [opts setObject:text forKey:kOptsKeyText];
+        if (link)   [opts setObject:link forKey:kOptsKeyLink];
+        if (image)  [opts setObject:image forKey:kOptsKeyImage];
+        
+        [self performSelectorInBackground:@selector(createTweetSheet:) withObject:opts]; 
+    }else{
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
+                                                        message:kTwitterError
+                                                       delegate:nil
+                                              cancelButtonTitle:@"Ok" 
+                                              otherButtonTitles: nil];
+        [alert show];
+    }    
 }
+- (void)createTweetSheet:(NSDictionary *)opts
+{
+    TWTweetComposeViewController *tweetSheet = [[TWTweetComposeViewController alloc] init];        
+    if ([opts objectForKey:kOptsKeyText]){
+        [tweetSheet setInitialText:[opts objectForKey:kOptsKeyText]];   
+    }
+    if ([opts objectForKey:kOptsKeyLink]){
+        [tweetSheet addURL:[NSURL URLWithString:[opts objectForKey:kOptsKeyLink]]];
+    }
+    if ([opts objectForKey:kOptsKeyImage]){
+        [tweetSheet addImage:[opts objectForKey:kOptsKeyImage]];   
+    }
+    
+    tweetSheet.completionHandler = ^(TWTweetComposeViewControllerResult result) {
+        [self cleanUpAfterSharing];
+        [self dismissModalViewControllerAnimated:YES];
+    };
+    [self performSelectorOnMainThread:@selector(displayViewController:) withObject:tweetSheet waitUntilDone:NO];
+}
+
+#pragma mark - SMS
 - (void)displayTextSheetWithText:(NSString *)text
 {
   if ([MFMessageComposeViewController canSendText]){
@@ -52,20 +90,36 @@
     [alert show];
   }
 }
+
+#pragma mark - EMAIL
 - (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject attachment:(NSString *)filePath
 {
-  MFMailComposeViewController *picker = [[MFMailComposeViewController alloc] init];
-  picker.mailComposeDelegate = self;
-  [picker setSubject:subject];
-  [picker setMessageBody:body isHTML:NO];
+    [JGALoadingView loadingViewInView:self.view withText:@"Composing..."];
+    NSMutableDictionary *opts = [NSMutableDictionary dictionaryWithCapacity:3];
+    if (body)       [opts setObject:body forKey:kOptsBody];
+    if (subject)    [opts setObject:subject forKey:kOptsSubject];
+    if (filePath)   [opts setObject:filePath forKey:kOptsAttach];    
+    [self performSelectorInBackground:@selector(displayEmail:) withObject:opts];
+}
+
+- (void)displayEmail:(NSDictionary *)opts
+{
+    MFMailComposeViewController *picker = [[MFMailComposeViewController alloc] init];
+    picker.mailComposeDelegate = self;
     
+    if ([opts objectForKey:kOptsSubject]) {
+        [picker setSubject:[opts objectForKey:kOptsSubject]];
+    }
+    if ([opts objectForKey:kOptsBody]) {
+        [picker setMessageBody:[opts objectForKey:kOptsBody] isHTML:NO];
+    }
+    NSString *filePath = [opts objectForKey:kOptsAttach];
     if (filePath) {
         NSData *data = [NSData dataWithContentsOfFile:filePath];
         [picker addAttachmentData:data mimeType:@"image/png" fileName:filePath];
-    }
+    }    
     
-    
-  [self presentViewController:picker animated:YES completion:NULL];
+    [self performSelectorOnMainThread:@selector(displayViewController:) withObject:picker waitUntilDone:NO];
 }
 
 - (void)mailComposeController:(MFMailComposeViewController*)controller
@@ -73,20 +127,16 @@
                         error:(NSError*)error 
 {	    
     [self cleanUpAfterSharing];
-  [self dismissViewControllerAnimated:YES completion:NULL];
+    [self dismissViewControllerAnimated:YES completion:NULL];
 }
 
 - (void)messageComposeViewController:(MFMessageComposeViewController *)controller
                  didFinishWithResult:(MessageComposeResult)result
 {
-  [self dismissViewControllerAnimated:YES completion:NULL];
+    [self dismissViewControllerAnimated:YES completion:NULL];
 }
 
-- (void)cleanUpAfterSharing
-{
-    // To be overriden
-}
-
+#pragma mark - Image Creation
 - (UIImage *)createPNGfromUIView:(UIView*)aView{
     UIGraphicsBeginImageContext(aView.bounds.size);
     CGContextRef context = UIGraphicsGetCurrentContext();
