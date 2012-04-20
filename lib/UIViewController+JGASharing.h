@@ -30,6 +30,8 @@
 // Creates a png and saves to documents. Returns full filepath
 - (NSString *)savePNGfromUIView:(UIView*)aView withFileName:(NSString*)aFilename;
 
+- (NSString *)saveImage:(UIImage *)image withFileName:(NSString *)filename;
+
 // Allow for clean up. Overriden in view controller
 - (void)cleanUpAfterSharing;
 @end

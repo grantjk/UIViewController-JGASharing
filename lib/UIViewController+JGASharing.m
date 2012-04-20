@@ -7,8 +7,8 @@
 //
 
 #import "UIViewController+JGASharing.h"
-#import "JGALoadingView.h"
 #import <QuartzCore/QuartzCore.h>
+#import "JGALoadingView.h"
 
 #define kOptsKeyText    @"text"
 #define kOptsKeyLink    @"link"
@@ -51,10 +51,11 @@
                                               cancelButtonTitle:@"Ok" 
                                               otherButtonTitles: nil];
         [alert show];
+        [self cleanUpAfterSharing];
     }    
 }
 - (void)createTweetSheet:(NSDictionary *)opts
-{
+{     
     TWTweetComposeViewController *tweetSheet = [[TWTweetComposeViewController alloc] init];        
     if ([opts objectForKey:kOptsKeyText]){
         [tweetSheet setInitialText:[opts objectForKey:kOptsKeyText]];   
@@ -87,7 +88,8 @@
                                                    delegate:nil 
                                           cancelButtonTitle:@"Ok" 
                                           otherButtonTitles: nil];
-    [alert show];
+      [alert show];
+      [self cleanUpAfterSharing];      
   }
 }
 
@@ -154,16 +156,21 @@
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     
+    return [self saveImage:image withFileName:aFilename];
+}
+
+- (NSString *)saveImage:(UIImage *)image withFileName:(NSString *)filename
+{
     // Retrieves the document directories from the iOS device
     NSArray* documentDirectories = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask,YES);
     
     NSString* documentDirectory = [documentDirectories objectAtIndex:0];
-    NSString* documentDirectoryFilename = [documentDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png",aFilename]];
+    NSString* documentDirectoryFilename = [documentDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png",filename]];
     
     // instructs the mutable data object to write its context to a file on disk
     NSData *data = [[NSData alloc] initWithData:UIImagePNGRepresentation(image)];
     [data writeToFile:documentDirectoryFilename atomically:YES];
-    return documentDirectoryFilename;
+    return documentDirectoryFilename;    
 }
 
 
