@@ -17,7 +17,8 @@
 #define kOptsAttach     @"attach"
 #define kOptsSubject    @"subject"
 
-#define kTwitterError @"Please enable Twitter in Settings to use this feature"
+#define kTwitterError @"Please enable Twitter in Settings to use this feature."
+#define kSMSError @"Unable to send SMS from this device."
 
 @implementation UIViewController(JGASharing)
 
@@ -25,6 +26,17 @@
 {
     [JGALoadingView hideLoadingView];
     [self presentViewController:viewController animated:YES completion:NULL];
+}
+
+- (void)displayAlertWithMessage:(NSString *)message
+{
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
+                                                    message:message
+                                                   delegate:nil
+                                          cancelButtonTitle:@"Ok" 
+                                          otherButtonTitles: nil];
+    [alert show];
+
 }
 
 - (void)cleanUpAfterSharing
@@ -45,12 +57,7 @@
         
         [self performSelectorInBackground:@selector(createTweetSheet:) withObject:opts]; 
     }else{
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
-                                                        message:kTwitterError
-                                                       delegate:nil
-                                              cancelButtonTitle:@"Ok" 
-                                              otherButtonTitles: nil];
-        [alert show];
+        [self displayAlertWithMessage:kTwitterError];
         [self cleanUpAfterSharing];
     }    
 }
@@ -77,22 +84,27 @@
 #pragma mark - SMS
 - (void)displayTextSheetWithText:(NSString *)text
 {
-  if ([MFMessageComposeViewController canSendText]){
+    if ([MFMessageComposeViewController canSendText]){
+        [JGALoadingView loadingViewInView:self.view withText:@"Composing..."];
+        
+        NSMutableDictionary *opts = [NSMutableDictionary dictionaryWithCapacity:3];
+        if (text)   [opts setObject:text forKey:kOptsKeyText];
+        
+        [self performSelectorInBackground:@selector(createSMSSheet:) withObject:opts]; 
+    }else{
+        [self displayAlertWithMessage:kSMSError];
+        [self cleanUpAfterSharing];      
+    }
+}
+- (void)createSMSSheet:(NSDictionary *)options
+{
     MFMessageComposeViewController *vc = [[MFMessageComposeViewController alloc] init];
     vc.messageComposeDelegate = self;
-    [vc setBody:text];
-    [self presentViewController:vc animated:YES completion:NULL];
-  }else{
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" 
-                                                    message:@"Unable to send SMS from this device." 
-                                                   delegate:nil 
-                                          cancelButtonTitle:@"Ok" 
-                                          otherButtonTitles: nil];
-      [alert show];
-      [self cleanUpAfterSharing];      
-  }
+    if ([options objectForKey:kOptsKeyText]) {
+        [vc setBody:[options objectForKey:kOptsKeyText]];
+    }
+    [self performSelectorOnMainThread:@selector(displayViewController:) withObject:vc waitUntilDone:NO];
 }
-
 #pragma mark - EMAIL
 - (void)displayMailSheetWithBody:(NSString *)body subject:(NSString *)subject attachment:(NSString *)filePath
 {
